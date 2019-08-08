@@ -1,0 +1,175 @@
+var xhttp = new XMLHttpRequest(); 
+
+xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+        if (this.responseText == "Player1") playerOne(); 
+        else if (this.responseText == "Player2") playerTwo(); 
+        else if (this.responseText == "Move") opponentMove(); 
+    }
+};
+
+var board = [ // 2D array signifying the board
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+];
+let currentPlayer = 1; // Player whos turn it currently is
+let turnNumber = 1;  // Number of the current turn
+let previousLoser = 1; // Loser of the previous game
+getPlayers(); 
+let playersInGame = 0; 
+let id = 1;
+
+let gameOver = 0 // Whether or not the game is currently over
+
+let playerOneWins = 0; // How many wins for player 1
+let playerTwoWins = 0; // How many wins for player 2
+let draws = 0; // Number of draws
+
+function getPlayers() {
+    xhttp.open("GET", "/players", true);
+    xhttp.send();
+}
+
+function move(row, column) { // Performs a move for the current player
+
+    if (gameOver) {
+        window.alert("The game is over!"); // Checks if the game is already over
+    }
+ //   else if(currentPlayer != id) {
+ //       window.alert("It's not your turn!");
+ //   }
+ //   else if (playersInGame != 2) {
+//      window.alert("Wait for another player to join!");
+//    }
+    else if(board[row][column] != 0) // Checks if there the selected space has already been selected
+    {
+        window.alert("That space has already been chosen!");
+    }
+    else {
+        document.getElementById(row + '' + column).innerHTML = currentPlayer == 1 ? 'X' : 'O';
+        board[row][column] = currentPlayer; // Sets the correct space to the current player
+        checkWin();
+        currentPlayer = currentPlayer == 1 ? 2:1; // Set current player to next player
+        xhttp.open("PUT", "/move?row=" + row + "&column=" + column, true);
+        xhttp.send();
+    }
+
+    if (currentPlayer == 1) {
+        document.getElementById('turn-text').innerHTML = "Player 1's Turn";
+    } else {
+        document.getElementById('turn-text').innerHTML = "Player 2's Turn";
+    }
+
+    waitForMove(); 
+}
+
+function checkWin() { // Checks to see if a win condition has been met
+    if (checkEqual(board[0])) win(board[0][0]); // Checks the first row
+    else if (checkEqual(board[1])) win(board[1][0]); // Checks the second row
+    else if (checkEqual(board[2])) win(board[2][0]); // Checks the third row
+    else if (checkEqual([board[0][0], board[1][0], board[2][0]])) win(board[0][0]); // Checks the first column
+    else if (checkEqual([board[0][1], board[1][1], board[2][1]])) win(board[0][1]); // Checks the second column
+    else if (checkEqual([board[0][2], board[1][2], board[2][2]])) win(board[0][2]); // Checks the third column
+    else if (checkEqual([board[0][0], board[1][1], board[2][2]])) win(board[0][0]); // Checks the first diagonal
+    else if (checkEqual([board[2][0], board[1][1], board[0][2]])) win(board[2][0]); // Checks the second diagonal
+    else if (turnNumber == 9) win(0); // Ends the game if there is a draw
+
+    if (!gameOver) turnNumber ++; // Advances the turn number while the game is not over
+}
+
+function checkEqual(row) { // Checks if the input array is equal at all elements
+    if(row[0] == row[1] && row[1] == row[2] && row[0] != 0) return true;
+    return false;
+}
+
+function win(winner) { // Makes changes to the game if a player has won
+    if (winner == 1) { // Player 1 is the winner
+        playerOneWins ++;
+        previousLoser = 2;
+        window.alert("Player 1 Wins!");
+        document.getElementById('oneWins').innerHTML = "Player 1 wins: " + playerOneWins;
+    }
+    else if (winner == 2) { // Player 2 is the winner
+        playerTwoWins ++;
+        previousLoser = 1;
+        window.alert("Player 2 Wins!");
+        document.getElementById('twoWins').innerHTML = "Player 2 wins: " + playerTwoWins;
+    }
+    else { // There was a draw
+        draws ++;
+        if (previousLoser == 1) previousLoser = 2;
+        else previousLoser = 1;
+        window.alert("It's a Draw!");
+        document.getElementById('draws').innerHTML = "Draws: " + draws;
+        let nextPlayer = id = 1 ? 2: 1; 
+        document.getElementById('status').innerHTML = "Player " + nextPlayer + "'s Move";
+    }
+    gameOver = 1;
+    document.getElementById('resetBoard').disabled = false; 
+}
+
+function reset() { // Resets the game board but not the wins
+    board = [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ];
+    currentPlayer = previousLoser;
+    turnNumber = 1;
+    gameOver = 0;
+    for(var i=0;i<3;i++) {
+        for (var j = 0; j < 3; j++) {
+            document.getElementById(i + '' + j).innerHTML = '';
+        } 
+    }
+    if (currentPlayer == 1) {
+        document.getElementById('turn-text').innerHTML = "Player 1's Turn";
+    } else {
+        document.getElementById('turn-text').innerHTML = "Player 2's Turn";
+    }
+    document.getElementById('resetBoard').disabled = true; 
+}
+
+function save() {
+//    window.alert("The game was saved");
+
+    var obj = JSON.stringify({ board: board });
+    console.log(obj);
+    xhttp.open("POST", "/save", true);
+
+    xhttp.setRequestHeader("Content-type", "application/json; charset=utf-8");
+
+    xhttp.send(obj);
+}
+
+function load() {
+    xhttp.open("GET", "/load", true);
+    xhttp.send(); 
+   // window.alert("No game to load");
+}
+
+function playerOne() {
+    id = 1; 
+    document.getElementById('pid').innerHTML += "1";
+    document.getElementById('status').innerHTML = "Waiting on Player 2";
+    playersInGame = 1; 
+}
+
+function playerTwo() {
+    id = 2; 
+    document.getElementById('pid').innerHTML += "2";
+    document.getElementById('status').innerHTML = "Player 1's Move";
+    playersInGame = 2; 
+    xhttp.open("PUT", "/playerTwoConnected", true)
+    xhttp.send();
+}
+
+function opponentMove(row, column) {
+  console.log("we did it");
+  //  document.getElementById(row + '' + column).innerHTML = currentPlayer == 1 ? 'X' : 'O';
+  //  board[row][column] = currentPlayer; // Sets the correct space to the current player
+  //  checkWin();
+  //  currentPlayer = currentPlayer == 1 ? 2:1; // Set current player to next player
+  //  document.getElementById('status').innerHTML = "Your Turn!";
+}

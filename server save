@@ -1,0 +1,67 @@
+const express = require('express');
+const app = express(); 
+const server = require('http').Server(app);
+const bodyParser = require('body-parser');
+const fs = require('fs'); 
+
+var players = 0; 
+var games = 0; 
+
+let moveRow; 
+let moveCol; 
+
+let playerList = {}; 
+
+app.use(express.static('.'));
+app.use(bodyParser.json());
+
+app.get('/', function (req, res) {
+    players++; 
+    playerList[players] = req.header; 
+    res.sendFile(__dirname + '/display.html'); 
+    console.log(playerList);
+}); 
+
+app.get('/players', (req, res) => {
+    if (players == 1) res.send("Player1");
+    else res.send("Player2");
+    res.end; 
+})
+
+app.put('/move', (req, res) => {
+    moveRow = req.query.row; 
+    moveCol = req.query.column; 
+
+    console.log(moveRow);
+    console.log(moveCol); 
+    
+    console.log(req.query);
+});
+
+app.put('/playerTwoConnected', (req, res) =>{
+    console.log("Both here");
+})
+
+app.post('/save', (req, res) => {
+    var board = req.body.board; 
+    games++; 
+    fs.writeFile("savedGames.txt", " " + board, (err) => { 
+        if (err) console.log(err); 
+    });
+});
+
+app.get('/load', (req, res) => {
+    let board;
+    fs.readFile("savedGames.txt", (err, data) => {
+        if (err) console.log(err); 
+
+        board = data; 
+    });
+    console.log(board); 
+})
+
+app.get('/opponentMove', (req,res) => {
+    res.send("Move");
+});
+
+server.listen(process.env.PORT || 5000);
